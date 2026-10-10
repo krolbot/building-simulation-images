@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+
+FROM ubuntu:24.04@sha256:f610ab94648195aa356059f5b41d6085c9d4d903c072430cdd1af7bdb646106b
+
+ARG ENERGYPLUS_VERSION=26.2.0
+ARG ENERGYPLUS_BUILD=4bd7a1f26f
+ARG ENERGYPLUS_ARCHIVE_SHA256=b848da8236482a2171a67d7eab00c82162105b653ffab3ae3b6c2217c433a8a1
+ARG ENERGYPLUS_ARCHIVE="EnergyPlus-${ENERGYPLUS_VERSION}-${ENERGYPLUS_BUILD}-Linux-Ubuntu24.04-x86_64.tar.gz"
+ARG ENERGYPLUS_URL="https://github.com/NatLabRockies/EnergyPlus/releases/download/v${ENERGYPLUS_VERSION}/${ENERGYPLUS_ARCHIVE}"
+
+LABEL org.opencontainers.image.title="EnergyPlus ${ENERGYPLUS_VERSION}" \
+      org.opencontainers.image.description="Pinned EnergyPlus CLI and Python API runtime" \
+      org.opencontainers.image.source="https://github.com/krolbot/building-simulation-images" \
+      org.opencontainers.image.licenses="BSD-3-Clause-like"
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates curl libexpat1 libgomp1 libx11-6 libxau6 libxcb1 libxdmcp6 \
+      python3 python3-pip python3-venv \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -L --fail --silent --show-error -o "/tmp/${ENERGYPLUS_ARCHIVE}" "${ENERGYPLUS_URL}" \
+ && echo "${ENERGYPLUS_ARCHIVE_SHA256}  /tmp/${ENERGYPLUS_ARCHIVE}" | sha256sum -c - \
+ && mkdir -p /opt/energyplus \
+ && tar -xzf "/tmp/${ENERGYPLUS_ARCHIVE}" --strip-components=1 -C /opt/energyplus \
+ && rm -f "/tmp/${ENERGYPLUS_ARCHIVE}" \
+ && ln -s /opt/energyplus/energyplus /usr/local/bin/energyplus \
+ && energyplus --version
+
+ENV PATH="/opt/energyplus:${PATH}" \
+    PYTHONPATH="/opt/energyplus"
+
+WORKDIR /workspace
+CMD ["sleep", "infinity"]
