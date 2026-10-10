@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+
+FROM openmodelica/openmodelica:v1.26.3-gui@sha256:7cf02d6e6632efb19addf94e4c12883e15d4fe9181e6827c3c34962ab8576234
+
+ARG MODELICA_STANDARD_LIBRARY_URL="https://github.com/modelica/ModelicaStandardLibrary/releases/download/v4.1.0/ModelicaStandardLibrary_v4.1.0.zip"
+ARG MODELICA_STANDARD_LIBRARY_SHA256=5409cfa17797c52d866dc9d2675badc1378b4bbf88066e60899a489cb1cb8a2d
+ARG BUILDINGS_LIBRARY_URL="https://github.com/lbl-srg/modelica-buildings/releases/download/v14.0.0/Buildings-v14.0.0.zip"
+ARG BUILDINGS_LIBRARY_SHA256=e088afbb9582df183d978bd94615e209c714123130b84c20dd7d3593a6da31ad
+
+LABEL org.opencontainers.image.title="OMEdit browser desktop" \
+      org.opencontainers.image.description="Official OpenModelica 1.26.3 GUI image with browser desktop, MSL 4.1.0 and Buildings 14.0.0" \
+      org.opencontainers.image.source="https://github.com/krolbot/building-simulation-images" \
+      org.opencontainers.image.licenses="OSMC-PL-1.8 AND BSD-3-Clause"
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates curl dbus-x11 fluxbox novnc tini unzip websockify x11-utils x11vnc xvfb \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /opt/modelica-libraries /config /workspace \
+ && curl -L --fail --silent --show-error -o /tmp/msl.zip "${MODELICA_STANDARD_LIBRARY_URL}" \
+ && echo "${MODELICA_STANDARD_LIBRARY_SHA256}  /tmp/msl.zip" | sha256sum -c - \
+ && unzip -q /tmp/msl.zip -d /opt/modelica-libraries \
+ && curl -L --fail --silent --show-error -o /tmp/buildings.zip "${BUILDINGS_LIBRARY_URL}" \
+ && echo "${BUILDINGS_LIBRARY_SHA256}  /tmp/buildings.zip" | sha256sum -c - \
+ && unzip -q /tmp/buildings.zip -d /opt/modelica-libraries \
+ && rm -f /tmp/msl.zip /tmp/buildings.zip \
+ && chown -R 1000:1000 /config /workspace
+
+COPY gui/omedit/start-gui.sh /usr/local/bin/start-gui
+COPY gui/common/index.html /usr/share/novnc/index.html
+
+ENV DISPLAY=:1 \
+    HOME=/config \
+    OPENMODELICALIBRARY=/opt/modelica-libraries \
+    QT_X11_NO_MITSHM=1 \
+    LIBGL_ALWAYS_SOFTWARE=1 \
+    DISPLAY_WIDTH=1920 \
+    DISPLAY_HEIGHT=1080
+
+USER 1000:1000
+WORKDIR /workspace
+EXPOSE 5800
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/start-gui"]
