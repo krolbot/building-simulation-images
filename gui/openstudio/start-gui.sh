@@ -8,6 +8,9 @@ chmod 700 "$XDG_RUNTIME_DIR"
 cleanup() {
   status=$?
   trap - EXIT INT TERM
+  if [[ "$status" -ne 0 && -f /tmp/openstudio-app.log ]]; then
+    cat /tmp/openstudio-app.log >&2
+  fi
   kill "${APP_PID:-}" "${WS_PID:-}" "${VNC_PID:-}" "${WM_PID:-}" "${XVFB_PID:-}" 2>/dev/null || true
   wait 2>/dev/null || true
   exit "$status"
